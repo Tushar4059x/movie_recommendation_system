@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommendation System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-indigo-700 mb-4">Movie Recommendation System</h1>
+            <p class="text-xl text-gray-600">Get personalized movie recommendations based on your preferences</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- User Input Section -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Get Recommendations</h2>
+                <form id="recommendation-form" class="mb-4">
+                    <div class="mb-4">
+                        <label for="user-id" class="block text-gray-700 text-sm font-bold mb-2">User ID:</label>
+                        <input type="number" id="user-id" name="user_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
+                        Get Recommendations
+                    </button>
+                </form>
+                <div id="user-profile" class="hidden mt-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">User Profile</h3>
+                    <div id="user-stats" class="mb-4 text-gray-700"></div>
+                    <h4 class="font-bold text-gray-700 mb-2">Top Rated Movies</h4>
+                    <ul id="user-ratings" class="list-disc list-inside text-gray-700"></ul>
+                </div>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Recommendations</h2>
+                <div id="loading-recommendations" class="hidden">
+                    <p class="text-gray-700">Loading recommendations...</p>
+                </div>
+                <div id="recommendations-container" class="hidden">
+                    <ul id="recommendations-list" class="divide-y divide-gray-200"></ul>
+                </div>
+                <div id="no-recommendations" class="text-gray-700">
+                    <p>Enter a user ID to see personalized recommendations</p>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">System Statistics</h2>
+                <div id="loading-stats" class="text-gray-700">
+                    <p>Loading stats...</p>
+                </div>
+                <div id="stats-container" class="hidden">
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-indigo-100 p-4 rounded-lg text-center">
+                            <span id="num-users" class="block text-2xl font-bold text-indigo-700"></span>
+                            <span class="text-gray-600 text-sm">Users</span>
+                        </div>
+                        <div class="bg-indigo-100 p-4 rounded-lg text-center">
+                            <span id="num-movies" class="block text-2xl font-bold text-indigo-700"></span>
+                            <span class="text-gray-600 text-sm">Movies</span>
+                        </div>
+                        <div class="bg-indigo-100 p-4 rounded-lg text-center">
+                            <span id="num-ratings" class="block text-2xl font-bold text-indigo-700"></span>
+                            <span class="text-gray-600 text-sm">Ratings</span>
+                        </div>
+                        <div class="bg-indigo-100 p-4 rounded-lg text-center">
+                            <span id="avg-rating" class="block text-2xl font-bold text-indigo-700"></span>
+                            <span class="text-gray-600 text-sm">Average Rating</span>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Top Rated Movies</h3>
+                    <ul id="top-movies" class="divide-y divide-gray-200"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movie Details Modal -->
+    <div id="movie-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="modal-title" class="text-2xl font-bold text-gray-800"></h3>
+                    <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="modal-content" class="text-gray-700">
+                    <p id="modal-genres" class="mb-4"></p>
+                    <div id="modal-rating" class="mb-4"></div>
+                    <h4 class="font-bold mb-2">Similar Movies</h4>
+                    <ul id="similar-movies" class="list-disc list-inside"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Load system stats
+            loadStats();
+
+            // Handle recommendation form submission
+            $('#recommendation-form').on('submit', function(e) {
+                e.preventDefault();
+                const userId = $('#user-id').val();
+                if (userId) {
+                    $('#no-recommendations').addClass('hidden');
+                    $('#recommendations-container').addClass('hidden');
+                    $('#loading-recommendations').removeClass('hidden');
+                    
+                    // Load user profile
+                    loadUserProfile(userId);
+                    
+                    // Get recommendations
+                    getRecommendations(userId);
+                }
+            });
+
+            // Close modal
+            $('#close-modal').on('click', function() {
+                $('#movie-modal').addClass('hidden');
+            });
+        });
+
+        function loadStats() {
+            $.ajax({
+                url: '/stats',
+                method: 'GET',
+                success: function(data) {
+                    $('#loading-stats').addClass('hidden');
+                    $('#stats-container').removeClass('hidden');
+                    
+                    // Update stats
+                    $('#num-users').text(data.stats.num_users);
+                    $('#num-movies').text(data.stats.num_movies);
+                    $('#num-ratings').text(data.stats.num_ratings.toLocaleString());
+                    $('#avg-rating').text(data.stats.avg_rating.toFixed(1));
+                    
+                    // Update top movies
+                    $('#top-movies').empty();
+                    data.top_movies.forEach(function(movie) {
+                        $('#top-movies').append(`
+                            <li class="py-3">
+                                <a href="#" class="movie-link" data-id="${movie.movie_id}">
+                                    <div class="flex justify-between">
+                                        <span class="font-medium">${movie.title}</span>
+                                        <span class="text-indigo-600">${movie.avg_rating.toFixed(1)} / 5</span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        ${movie.genres} • ${movie.num_ratings} ratings
+                                    </div>
+                                </a>
+                            </li>
+                        `);
+                    });
+                    
+                    // Attach event listeners to movie links
+                    attachMovieEvents();
+                },
+                error: function(err) {
+                    $('#loading-stats').html('<p class="text-red-600">Error loading stats. Please try again.</p>');
+                }
+            });
+        }
+
+        function loadUserProfile(userId) {
+            $.ajax({
+                url: `/user/${userId}/profile`,
+                method: 'GET',
+                success: function(data) {
+                    $('#user-profile').removeClass('hidden');
+                    
+                    if (data.error) {
+                        $('#user-stats').html(`<p class="text-red-600">${data.error}</p>`);
+                        $('#user-ratings').empty();
+                        return;
+                    }
+                    
+                    // Update user stats
+                    $('#user-stats').html(`
+                        <p><strong>User ID:</strong> ${data.user_id}</p>
+                        <p><strong>Total Ratings:</strong> ${data.num_ratings}</p>
+                    `);
+                    
+                    // Update top rated movies (limit to 5)
+                    $('#user-ratings').empty();
+                    data.rated_movies.slice(0, 5).forEach(function(movie) {
+                        $('#user-ratings').append(`
+                            <li>
+                                <a href="#" class="movie-link" data-id="${movie.movie_id}">
+                                    ${movie.title} (${movie.rating} / 5)
+                                </a>
+                            </li>
+                        `);
+                    });
+                    
+                    // Attach event listeners to movie links
+                    attachMovieEvents();
+                },
+                error: function(err) {
+                    $('#user-profile').removeClass('hidden');
+                    $('#user-stats').html('<p class="text-red-600">Error loading user profile. Please try again.</p>');
+                    $('#user-ratings').empty();
+                }
+            });
+        }
+
+        function getRecommendations(userId) {
+            $.ajax({
+                url: '/recommend',
+                method: 'POST',
+                data: { user_id: userId },
+                success: function(data) {
+                    $('#loading-recommendations').addClass('hidden');
+                    $('#recommendations-container').removeClass('hidden');
+                    
+                    if (data.error) {
+                        $('#recommendations-list').html(`<p class="text-red-600">${data.error}</p>`);
+                        return;
+                    }
+                    
+                    // Update recommendations list
+                    $('#recommendations-list').empty();
+                    data.recommendations.forEach(function(movie, index) {
+                        $('#recommendations-list').append(`
+                            <li class="py-3">
+                                <a href="#" class="movie-link" data-id="${movie.movie_id}">
+                                    <div class="flex justify-between">
+                                        <span class="font-medium">${index + 1}. ${movie.title}</span>
+                                        <span class="text-indigo-600">${movie.score ? movie.score.toFixed(2) : 'N/A'}</span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">${movie.genres}</div>
+                                </a>
+                            </li>
+                        `);
+                    });
+                    
+                    // Attach event listeners to movie links
+                    attachMovieEvents();
+                },
+                error: function(err) {
+                    $('#loading-recommendations').addClass('hidden');
+                    $('#recommendations-container').removeClass('hidden');
+                    $('#recommendations-list').html('<p class="text-red-600">Error getting recommendations. Please try again.</p>');
+                }
+            });
+        }
+
+        function attachMovieEvents() {
+            $('.movie-link').off('click').on('click', function(e) {
+                e.preventDefault();
+                const movieId = $(this).data('id');
+                const movieTitle = $(this).find('.font-medium').text() || $(this).text();
+                
+                // Show modal with loading state
+                $('#modal-title').text(movieTitle.replace(/^\d+\.\s+/, ''));
+                $('#modal-genres').text('Loading...');
+                $('#modal-rating').text('');
+                $('#similar-movies').html('<li>Loading similar movies...</li>');
+                $('#movie-modal').removeClass('hidden');
+                
+                // Get similar movies
+                getSimilarMovies(movieId);
+            });
+        }
+
+        function getSimilarMovies(movieId) {
+            $.ajax({
+                url: `/movie/${movieId}/similar`,
+                method: 'GET',
+                success: function(data) {
+                    if (data.error) {
+                        $('#similar-movies').html(`<li class="text-red-600">${data.error}</li>`);
+                        return;
+                    }
+                    
+                    // Update similar movies list
+                    $('#similar-movies').empty();
+                    data.similar_movies.forEach(function(movie) {
+                        $('#similar-movies').append(`
+                            <li>
+                                <a href="#" class="text-indigo-600 hover:underline movie-link" data-id="${movie.movie_id}">
+                                    ${movie.title} (${movie.similarity.toFixed(2)})
+                                </a>
+                            </li>
+                        `);
+                    });
+                    
+                    // Update genres if available
+                    if (data.similar_movies.length > 0) {
+                        $('#modal-genres').text(data.similar_movies[0].genres);
+                    }
+                    
+                    // Attach event listeners to new movie links
+                    attachMovieEvents();
+                },
+                error: function(err) {
+                    $('#similar-movies').html('<li class="text-red-600">Error loading similar movies. Please try again.</li>');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
