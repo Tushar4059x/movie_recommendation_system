@@ -44,7 +44,7 @@ bdi-project/
 
 1. Clone the repository:
    ```
-   git clone (https://github.com/Tushar4059x/movie_recommendation_system)
+   git clone https://github.com/Tushar4059x/movie_recommendation_system
    cd bdi-project
    ```
 
